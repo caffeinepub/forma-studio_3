@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Dark background */
+    --background: 0.08 0.005 260;
+    --foreground: 0.97 0.005 80;
+
+    /* Cards */
+    --card: 0.12 0.006 260;
+    --card-foreground: 0.97 0.005 80;
+
+    --popover: 0.12 0.006 260;
+    --popover-foreground: 0.97 0.005 80;
+
+    /* Primary: teal */
+    --primary: 0.75 0.12 185;
+    --primary-foreground: 0.1 0.005 260;
+
+    /* Secondary */
+    --secondary: 0.18 0.006 260;
+    --secondary-foreground: 0.8 0.01 80;
+
+    --muted: 0.15 0.006 260;
+    --muted-foreground: 0.55 0.01 80;
+
+    /* Accent: teal */
+    --accent: 0.75 0.12 185;
+    --accent-foreground: 0.1 0.005 260;
+
+    --destructive: 0.55 0.2 25;
+    --destructive-foreground: 0.99 0 0;
+
+    --border: 0.22 0.008 260;
+    --input: 0.22 0.008 260;
+    --ring: 0.75 0.12 185;
+
+    --chart-1: 0.75 0.12 185;
+    --chart-2: 0.65 0.1 200;
+    --chart-3: 0.55 0.09 195;
+    --chart-4: 0.45 0.08 185;
+    --chart-5: 0.85 0.1 185;
+
+    /* Sidebar: near black */
+    --sidebar: 0.1 0.006 260;
+    --sidebar-foreground: 0.9 0.01 80;
+    --sidebar-primary: 0.75 0.12 185;
+    --sidebar-primary-foreground: 0.1 0.005 260;
+    --sidebar-accent: 0.18 0.01 260;
+    --sidebar-accent-foreground: 0.9 0.01 80;
+    --sidebar-border: 0.22 0.008 260;
+    --sidebar-ring: 0.75 0.12 185;
+
+    /* Custom tokens */
+    --sage: 0.75 0.12 185;
+    --sage-light: 0.85 0.1 185;
+    --sage-muted: 0.2 0.05 185;
+    --taupe: 0.4 0.04 75;
+    --amber: 0.72 0.15 65;
+    --charcoal: 0.1 0.006 260;
+    --cream: 0.97 0.005 80;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Cormorant Garamond', serif;
+  }
+  .font-body {
+    font-family: 'DM Sans', sans-serif;
+  }
+  .text-sage {
+    color: oklch(var(--sage));
+  }
+  .bg-sage {
+    background-color: oklch(var(--sage));
+  }
+  .bg-sage-light {
+    background-color: oklch(var(--sage-muted));
+  }
+  .text-amber-warm {
+    color: oklch(var(--amber));
+  }
+  .bg-amber-warm {
+    background-color: oklch(0.92 0.08 65);
+  }
+  .bg-charcoal {
+    background-color: oklch(var(--charcoal));
+  }
+}
