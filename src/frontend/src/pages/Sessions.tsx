@@ -24,11 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Info, Pencil, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Info, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSessions } from "../hooks/useSessions";
-import type { Session } from "../types";
+import { useTrainers } from "../hooks/useTrainers";
+import type { Session, Trainer } from "../types";
 
 const todayStr = new Date().toISOString().split("T")[0];
 
@@ -40,7 +41,7 @@ const EMPTY_FORM: Omit<Session, "id"> = {
   trainer: "",
   sessionType: "Reformer Group",
   reformerAssignment: "R1",
-  capacity: 6,
+  capacity: 3,
   enrolled: 0,
 };
 
@@ -58,12 +59,47 @@ function isValidTimeSlot(time: string): boolean {
   );
 }
 
+function getTimeSlot(time: string): "Morning" | "Evening" | null {
+  if (!time) return null;
+  const [h, m] = time.split(":").map(Number);
+  const mins = h * 60 + m;
+  if (mins >= 7 * 60 + 30 && mins <= 12 * 60) return "Morning";
+  if (mins >= 16 * 60 && mins <= 20 * 60) return "Evening";
+  return null;
+}
+
+const DAY_MAP: Record<number, Trainer["workingDays"][number]> = {
+  0: "Sun",
+  1: "Mon",
+  2: "Tue",
+  3: "Wed",
+  4: "Thu",
+  5: "Fri",
+  6: "Sat",
+};
+
+function isTrainerAvailable(
+  trainer: Trainer,
+  date: string,
+  time: string,
+): boolean {
+  if (trainer.status !== "Available") return false;
+  const dayOfWeek = new Date(date).getDay();
+  const dayName = DAY_MAP[dayOfWeek];
+  if (!trainer.workingDays.includes(dayName)) return false;
+  const slot = getTimeSlot(time);
+  if (!slot) return true;
+  if (trainer.availableSlots === "Both") return true;
+  return trainer.availableSlots === slot;
+}
+
 function formatDuration(mins: number) {
   return mins >= 60 ? `${mins / 60}h` : `${mins}min`;
 }
 
 export function Sessions() {
   const { sessions, addSession, updateSession, deleteSession } = useSessions();
+  const { trainers } = useTrainers();
   const [dateFilter, setDateFilter] = useState(todayStr);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
@@ -75,6 +111,33 @@ export function Sessions() {
       .filter((s) => !dateFilter || s.date === dateFilter)
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [sessions, dateFilter]);
+
+  // Check trainer availability warning
+  const trainerWarning = useMemo(() => {
+    if (!form.trainer || !form.date || !form.time) return null;
+    const trainer = trainers.find((t) => t.name === form.trainer);
+    if (!trainer) return null;
+    if (!isTrainerAvailable(trainer, form.date, form.time)) {
+      return `${trainer.name} is not available for this day/slot`;
+    }
+    return null;
+  }, [form.trainer, form.date, form.time, trainers]);
+
+  // Check reformer occupancy warning
+  const reformerWarning = useMemo(() => {
+    if (form.reformerAssignment === "None" || !form.date || !form.time)
+      return null;
+    const conflicting = sessions.filter(
+      (s) =>
+        s.date === form.date &&
+        s.reformerAssignment === form.reformerAssignment &&
+        s.id !== editingSession?.id,
+    );
+    if (conflicting.length >= 1) {
+      return `${form.reformerAssignment} may already be assigned on this date`;
+    }
+    return null;
+  }, [sessions, form.date, form.time, form.reformerAssignment, editingSession]);
 
   function openAdd() {
     setEditingSession(null);
@@ -94,13 +157,14 @@ export function Sessions() {
   function validate(): boolean {
     const e: typeof errors = {};
     if (!form.name.trim()) e.name = "Session name is required";
-    if (!form.trainer.trim()) e.trainer = "Trainer is required";
+    if (!form.trainer) e.trainer = "Trainer is required";
     if (!form.date) e.date = "Date is required";
     if (!isValidTimeSlot(form.time))
       e.time =
         "Time must be within morning (7:30–12:00) or evening (16:00–20:00) slots";
     if (form.enrolled > form.capacity)
       e.enrolled = "Enrolled cannot exceed capacity";
+    if (form.capacity > 3) e.capacity = "Maximum 3 clients per session";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -132,9 +196,9 @@ export function Sessions() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-4xl font-light text-foreground">
+          <h2 className="font-display text-3xl md:text-4xl font-light text-foreground">
             Sessions
           </h2>
           <p className="text-sm text-muted-foreground mt-1 font-body">
@@ -156,7 +220,7 @@ export function Sessions() {
       </div>
 
       {/* Date Filter */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Label className="text-xs font-body font-medium uppercase tracking-widest text-muted-foreground">
           Date
         </Label>
@@ -191,115 +255,119 @@ export function Sessions() {
         </div>
       ) : (
         <div className="rounded-lg border border-border/60 shadow-card overflow-hidden">
-          <Table data-ocid="sessions.table">
-            <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                {[
-                  "Session",
-                  "Date",
-                  "Time",
-                  "Duration",
-                  "Trainer",
-                  "Type",
-                  "Reformer",
-                  "Occupancy",
-                  "Actions",
-                ].map((h) => (
-                  <TableHead
-                    key={h}
-                    className="font-body font-medium text-xs uppercase tracking-widest text-muted-foreground"
-                  >
-                    {h}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((s, idx) => {
-                const style = typeBadgeStyle(s.sessionType);
-                return (
-                  <TableRow
-                    key={s.id}
-                    data-ocid={`sessions.row.${idx + 1}`}
-                    className="hover:bg-muted/20"
-                  >
-                    <TableCell className="font-body font-medium text-sm text-foreground">
-                      {s.name}
-                    </TableCell>
-                    <TableCell className="font-body text-sm text-muted-foreground">
-                      {s.date}
-                    </TableCell>
-                    <TableCell className="font-body font-medium text-sm">
-                      {s.time}
-                    </TableCell>
-                    <TableCell className="font-body text-sm">
-                      {formatDuration(s.duration)}
-                    </TableCell>
-                    <TableCell className="font-body text-sm">
-                      {s.trainer}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        className="font-body text-xs border-0"
-                        style={{
-                          backgroundColor: style.bg,
-                          color: style.color,
-                        }}
-                      >
-                        {s.sessionType}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {s.reformerAssignment !== "None" ? (
+          <div className="overflow-x-auto">
+            <Table data-ocid="sessions.table">
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  {[
+                    "Session",
+                    "Date",
+                    "Time",
+                    "Duration",
+                    "Trainer",
+                    "Type",
+                    "Reformer",
+                    "Occupancy",
+                    "Actions",
+                  ].map((h) => (
+                    <TableHead
+                      key={h}
+                      className="font-body font-medium text-xs uppercase tracking-widest text-muted-foreground"
+                    >
+                      {h}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((s, idx) => {
+                  const style = typeBadgeStyle(s.sessionType);
+                  return (
+                    <TableRow
+                      key={s.id}
+                      data-ocid={`sessions.row.${idx + 1}`}
+                      className="hover:bg-muted/20"
+                    >
+                      <TableCell className="font-body font-medium text-sm text-foreground">
+                        {s.name}
+                      </TableCell>
+                      <TableCell className="font-body text-sm text-muted-foreground">
+                        {s.date}
+                      </TableCell>
+                      <TableCell className="font-body font-medium text-sm">
+                        {s.time}
+                      </TableCell>
+                      <TableCell className="font-body text-sm">
+                        {formatDuration(s.duration)}
+                      </TableCell>
+                      <TableCell className="font-body text-sm">
+                        {s.trainer}
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           className="font-body text-xs border-0"
                           style={{
-                            backgroundColor: "oklch(0.88 0.04 145)",
-                            color: "oklch(0.35 0.07 148)",
+                            backgroundColor: style.bg,
+                            color: style.color,
                           }}
                         >
-                          {s.reformerAssignment}
+                          {s.sessionType}
                         </Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-body text-sm font-medium">
-                        {s.enrolled}
-                      </span>
-                      <span className="text-muted-foreground font-body text-sm">
-                        {" "}
-                        / {s.capacity}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEdit(s)}
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                          data-ocid={`sessions.edit_button.${idx + 1}`}
-                        >
-                          <Pencil size={13} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(s)}
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                          data-ocid={`sessions.delete_button.${idx + 1}`}
-                        >
-                          <Trash2 size={13} />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell>
+                        {s.reformerAssignment !== "None" ? (
+                          <Badge
+                            className="font-body text-xs border-0"
+                            style={{
+                              backgroundColor: "oklch(0.88 0.04 145)",
+                              color: "oklch(0.35 0.07 148)",
+                            }}
+                          >
+                            {s.reformerAssignment}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            —
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-body text-sm font-medium">
+                          {s.enrolled}
+                        </span>
+                        <span className="text-muted-foreground font-body text-sm">
+                          {" "}
+                          / {s.capacity}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEdit(s)}
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            data-ocid={`sessions.edit_button.${idx + 1}`}
+                          >
+                            <Pencil size={13} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(s)}
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            data-ocid={`sessions.delete_button.${idx + 1}`}
+                          >
+                            <Trash2 size={13} />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 
@@ -307,7 +375,7 @@ export function Sessions() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           data-ocid="sessions.form.dialog"
-          className="max-w-lg font-body"
+          className="max-w-lg w-[95vw] font-body max-h-[90vh] overflow-y-auto"
         >
           <DialogHeader>
             <DialogTitle className="font-display text-2xl font-light">
@@ -316,7 +384,7 @@ export function Sessions() {
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Session Name *
@@ -337,21 +405,46 @@ export function Sessions() {
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Trainer *
                 </Label>
-                <Input
+                <Select
                   value={form.trainer}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, trainer: e.target.value }))
-                  }
-                  placeholder="Trainer name"
-                  className={errors.trainer ? "border-destructive" : ""}
-                />
+                  onValueChange={(v) => setForm((f) => ({ ...f, trainer: v }))}
+                >
+                  <SelectTrigger
+                    data-ocid="sessions.form.trainer.select"
+                    className={errors.trainer ? "border-destructive" : ""}
+                  >
+                    <SelectValue placeholder="Select trainer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {trainers.map((t) => (
+                      <SelectItem key={t.id} value={t.name}>
+                        {t.name}
+                        {t.status !== "Available" && ` (${t.status})`}
+                      </SelectItem>
+                    ))}
+                    {trainers.length === 0 && (
+                      <SelectItem value="" disabled>
+                        No trainers added
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
                 {errors.trainer && (
                   <p className="text-xs text-destructive">{errors.trainer}</p>
+                )}
+                {trainerWarning && (
+                  <p
+                    className="text-xs flex items-center gap-1"
+                    style={{ color: "oklch(0.78 0.12 60)" }}
+                  >
+                    <AlertTriangle size={11} />
+                    {trainerWarning}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Date *
@@ -367,8 +460,7 @@ export function Sessions() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                  Time *
-                  <Info size={11} className="text-muted-foreground" />
+                  Time * <Info size={11} className="text-muted-foreground" />
                 </Label>
                 <Input
                   data-ocid="sessions.form.time.input"
@@ -396,7 +488,7 @@ export function Sessions() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Duration
@@ -468,25 +560,42 @@ export function Sessions() {
                     ))}
                   </SelectContent>
                 </Select>
+                {reformerWarning && (
+                  <p
+                    className="text-xs flex items-center gap-1"
+                    style={{ color: "oklch(0.78 0.12 60)" }}
+                  >
+                    <AlertTriangle size={11} />
+                    {reformerWarning}
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                  Capacity
+                  Capacity (max 3)
                 </Label>
                 <Input
                   type="number"
                   min={1}
+                  max={3}
                   value={form.capacity}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      capacity: Number.parseInt(e.target.value) || 1,
+                      capacity: Math.min(
+                        3,
+                        Number.parseInt(e.target.value) || 1,
+                      ),
                     }))
                   }
+                  className={errors.capacity ? "border-destructive" : ""}
                 />
+                {errors.capacity && (
+                  <p className="text-xs text-destructive">{errors.capacity}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -495,11 +604,15 @@ export function Sessions() {
                 <Input
                   type="number"
                   min={0}
+                  max={3}
                   value={form.enrolled}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      enrolled: Number.parseInt(e.target.value) || 0,
+                      enrolled: Math.min(
+                        3,
+                        Number.parseInt(e.target.value) || 0,
+                      ),
                     }))
                   }
                   className={errors.enrolled ? "border-destructive" : ""}

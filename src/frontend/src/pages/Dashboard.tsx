@@ -84,7 +84,7 @@ export function Dashboard() {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="font-display text-4xl font-light text-foreground">
+        <h2 className="font-display text-3xl md:text-4xl font-light text-foreground">
           Dashboard
         </h2>
         <p className="text-sm text-muted-foreground mt-1 font-body">
@@ -98,7 +98,7 @@ export function Dashboard() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5">
         {metrics.map((m) => {
           const Icon = m.icon;
           return (
@@ -158,10 +158,10 @@ export function Dashboard() {
                   <div
                     key={session.id}
                     data-ocid={`dashboard.schedule.row.${idx + 1}`}
-                    className="flex items-center gap-6 px-6 py-4 hover:bg-muted/40 transition-colors"
+                    className="flex flex-wrap items-center gap-3 md:gap-6 px-4 md:px-6 py-3 md:py-4 hover:bg-muted/40 transition-colors"
                   >
                     {/* Time */}
-                    <div className="w-20 shrink-0">
+                    <div className="w-14 md:w-20 shrink-0">
                       <p className="font-body font-medium text-sm text-foreground">
                         {session.time}
                       </p>

@@ -9,6 +9,8 @@ export type Client = {
   assignedReformer: "R1" | "R2" | "R3";
   status: "Active" | "Inactive";
   planStartDate: string;
+  lastPaidDate?: string;
+  nextDueDate?: string;
 };
 
 export type Session = {
@@ -28,4 +30,48 @@ export type ReformerStatus = {
   id: "R1" | "R2" | "R3";
   status: "Available" | "Occupied" | "Maintenance";
   currentClient?: string;
+};
+
+export type Trainer = {
+  id: string;
+  name: string;
+  phone: string;
+  specialization: string;
+  workingDays: ("Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun")[];
+  availableSlots: "Morning" | "Evening" | "Both";
+  status: "Available" | "On Leave" | "Unavailable";
+};
+
+export type AttendanceRecord = {
+  id: string;
+  sessionId: string;
+  clientId: string;
+  date: string;
+  status: "Present" | "Absent" | "Late";
+};
+
+export type Payment = {
+  id: string;
+  clientId: string;
+  amount: number;
+  date: string;
+  method: "Cash" | "UPI" | "Bank Transfer";
+  notes: string;
+};
+
+export type ReminderSettings = {
+  studioWhatsApp: string;
+  studioName: string;
+  triggerDays: number[];
+  messageTemplate: string;
+};
+
+export type RenewalRecord = {
+  id: string;
+  clientId: string;
+  oldCycle: "Monthly" | "Quarterly" | "6-Month";
+  oldFrequency: "1x" | "2x" | "3x";
+  oldFee: number;
+  cycleEndDate: string;
+  status: "Pending" | "Renewed" | "Upgraded" | "Deactivated";
 };

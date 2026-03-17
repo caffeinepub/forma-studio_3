@@ -54,7 +54,7 @@ export function ReformerMap() {
   return (
     <div className="space-y-8 animate-fade-in">
       <div>
-        <h2 className="font-display text-4xl font-light text-foreground">
+        <h2 className="font-display text-3xl md:text-4xl font-light text-foreground">
           Reformer Map
         </h2>
         <p className="text-sm text-muted-foreground mt-1 font-body">
@@ -63,7 +63,7 @@ export function ReformerMap() {
       </div>
 
       {/* Reformer Cards */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
         {reformers.map((reformer) => {
           const style = STATUS_STYLES[reformer.status];
           const Icon = style.icon;
@@ -153,7 +153,7 @@ export function ReformerMap() {
                 <div
                   key={s.id}
                   data-ocid={`reformer.schedule.row.${idx + 1}`}
-                  className="flex items-center gap-4 rounded-lg border border-border/50 px-5 py-3 bg-card shadow-xs"
+                  className="flex flex-wrap items-center gap-2 md:gap-4 rounded-lg border border-border/50 px-5 py-3 bg-card shadow-xs"
                 >
                   <Badge
                     className="font-body text-xs border-0 w-10 justify-center shrink-0"

@@ -33,13 +33,19 @@ import { toast } from "sonner";
 import { useClients } from "../hooks/useClients";
 import type { Client } from "../types";
 
+const FEE_LOOKUP: Record<string, Record<string, number>> = {
+  Monthly: { "1x": 4000, "2x": 7500, "3x": 10500 },
+  Quarterly: { "1x": 11000, "2x": 21000, "3x": 29000 },
+  "6-Month": { "1x": 20000, "2x": 39000, "3x": 54000 },
+};
+
 const EMPTY_FORM: Omit<Client, "id"> = {
   name: "",
   email: "",
   phone: "",
   sessionFrequency: "2x",
   paymentCycle: "Monthly",
-  feeAmount: 200,
+  feeAmount: 7500,
   assignedReformer: "R1",
   status: "Active",
   planStartDate: new Date().toISOString().split("T")[0],
@@ -97,7 +103,7 @@ export function Clients() {
       toast.success(`${form.name} updated successfully`);
     } else {
       addClient({ ...form, id: crypto.randomUUID() });
-      toast.success(`${form.name} added to FORMA`);
+      toast.success(`${form.name} added`);
     }
     setDialogOpen(false);
   }
@@ -107,11 +113,24 @@ export function Clients() {
     toast.success(`${client.name} removed`);
   }
 
+  function handleFreqOrCycleChange(
+    freq: Client["sessionFrequency"],
+    cycle: Client["paymentCycle"],
+  ) {
+    const suggested = FEE_LOOKUP[cycle]?.[freq] ?? form.feeAmount;
+    setForm((f) => ({
+      ...f,
+      sessionFrequency: freq,
+      paymentCycle: cycle,
+      feeAmount: suggested,
+    }));
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-4xl font-light text-foreground">
+          <h2 className="font-display text-3xl md:text-4xl font-light text-foreground">
             Clients
           </h2>
           <p className="text-sm text-muted-foreground mt-1 font-body">
@@ -133,7 +152,7 @@ export function Clients() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-xs">
           <Input
             data-ocid="clients.search.input"
@@ -172,120 +191,122 @@ export function Clients() {
         </div>
       ) : (
         <div className="rounded-lg border border-border/60 shadow-card overflow-hidden">
-          <Table data-ocid="clients.table">
-            <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                {[
-                  "Name",
-                  "Phone",
-                  "Frequency",
-                  "Payment Cycle",
-                  "Fee",
-                  "Reformer",
-                  "Status",
-                  "Actions",
-                ].map((h) => (
-                  <TableHead
-                    key={h}
-                    className="font-body font-medium text-xs uppercase tracking-widest text-muted-foreground"
-                  >
-                    {h}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((client, idx) => (
-                <TableRow
-                  key={client.id}
-                  data-ocid={`clients.row.${idx + 1}`}
-                  className="hover:bg-muted/20"
-                >
-                  <TableCell>
-                    <div>
-                      <p className="font-body font-medium text-sm text-foreground">
-                        {client.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {client.email}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-body text-sm">
-                    {client.phone}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="font-body text-xs">
-                      {client.sessionFrequency}/week
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-body text-sm">
-                    {client.paymentCycle}
-                  </TableCell>
-                  <TableCell className="font-body text-sm font-medium">
-                    ${client.feeAmount}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className="font-body text-xs"
-                      style={{
-                        backgroundColor: "oklch(0.88 0.04 145)",
-                        color: "oklch(0.35 0.07 148)",
-                        border: "none",
-                      }}
+          <div className="overflow-x-auto">
+            <Table data-ocid="clients.table">
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  {[
+                    "Name",
+                    "Phone",
+                    "Frequency",
+                    "Payment Cycle",
+                    "Fee",
+                    "Reformer",
+                    "Status",
+                    "Actions",
+                  ].map((h) => (
+                    <TableHead
+                      key={h}
+                      className="font-body font-medium text-xs uppercase tracking-widest text-muted-foreground"
                     >
-                      {client.assignedReformer}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={cn(
-                        "font-body text-xs",
-                        client.status === "Active"
-                          ? "bg-sage-light text-sage"
-                          : "",
-                      )}
-                      style={{
-                        backgroundColor:
-                          client.status === "Active"
-                            ? "oklch(0.88 0.04 145)"
-                            : "oklch(0.9 0.01 75)",
-                        color:
-                          client.status === "Active"
-                            ? "oklch(0.35 0.085 150)"
-                            : "oklch(0.5 0.02 75)",
-                        border: "none",
-                      }}
-                    >
-                      {client.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(client)}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                        data-ocid={`clients.edit_button.${idx + 1}`}
-                      >
-                        <Pencil size={13} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(client)}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                        data-ocid={`clients.delete_button.${idx + 1}`}
-                      >
-                        <Trash2 size={13} />
-                      </Button>
-                    </div>
-                  </TableCell>
+                      {h}
+                    </TableHead>
+                  ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((client, idx) => (
+                  <TableRow
+                    key={client.id}
+                    data-ocid={`clients.row.${idx + 1}`}
+                    className="hover:bg-muted/20"
+                  >
+                    <TableCell>
+                      <div>
+                        <p className="font-body font-medium text-sm text-foreground">
+                          {client.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {client.email}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-body text-sm">
+                      {client.phone}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-body text-xs">
+                        {client.sessionFrequency}/week
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-body text-sm">
+                      {client.paymentCycle}
+                    </TableCell>
+                    <TableCell className="font-body text-sm font-medium">
+                      ₹{client.feeAmount.toLocaleString("en-IN")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className="font-body text-xs"
+                        style={{
+                          backgroundColor: "oklch(0.88 0.04 145)",
+                          color: "oklch(0.35 0.07 148)",
+                          border: "none",
+                        }}
+                      >
+                        {client.assignedReformer}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={cn(
+                          "font-body text-xs",
+                          client.status === "Active"
+                            ? "bg-sage-light text-sage"
+                            : "",
+                        )}
+                        style={{
+                          backgroundColor:
+                            client.status === "Active"
+                              ? "oklch(0.88 0.04 145)"
+                              : "oklch(0.9 0.01 75)",
+                          color:
+                            client.status === "Active"
+                              ? "oklch(0.35 0.085 150)"
+                              : "oklch(0.5 0.02 75)",
+                          border: "none",
+                        }}
+                      >
+                        {client.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(client)}
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                          data-ocid={`clients.edit_button.${idx + 1}`}
+                        >
+                          <Pencil size={13} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(client)}
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                          data-ocid={`clients.delete_button.${idx + 1}`}
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
 
@@ -293,7 +314,7 @@ export function Clients() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           data-ocid="clients.form.dialog"
-          className="max-w-lg font-body"
+          className="max-w-lg w-[95vw] font-body max-h-[90vh] overflow-y-auto"
         >
           <DialogHeader>
             <DialogTitle className="font-display text-2xl font-light">
@@ -302,7 +323,7 @@ export function Clients() {
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Name *
@@ -344,7 +365,7 @@ export function Clients() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Phone / WhatsApp *
@@ -354,7 +375,7 @@ export function Clients() {
                   onChange={(e) =>
                     setForm((f) => ({ ...f, phone: e.target.value }))
                   }
-                  placeholder="+1 555 0000"
+                  placeholder="+91 98765 00000"
                   className={errors.phone ? "border-destructive" : ""}
                 />
                 {errors.phone && (
@@ -375,7 +396,7 @@ export function Clients() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                   Frequency
@@ -383,10 +404,10 @@ export function Clients() {
                 <Select
                   value={form.sessionFrequency}
                   onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      sessionFrequency: v as Client["sessionFrequency"],
-                    }))
+                    handleFreqOrCycleChange(
+                      v as Client["sessionFrequency"],
+                      form.paymentCycle,
+                    )
                   }
                 >
                   <SelectTrigger>
@@ -408,10 +429,10 @@ export function Clients() {
                 <Select
                   value={form.paymentCycle}
                   onValueChange={(v) =>
-                    setForm((f) => ({
-                      ...f,
-                      paymentCycle: v as Client["paymentCycle"],
-                    }))
+                    handleFreqOrCycleChange(
+                      form.sessionFrequency,
+                      v as Client["paymentCycle"],
+                    )
                   }
                 >
                   <SelectTrigger>
@@ -453,10 +474,10 @@ export function Clients() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                  Fee Amount ($)
+                  Fee Amount (₹)
                 </Label>
                 <Input
                   type="number"
@@ -467,7 +488,6 @@ export function Clients() {
                       feeAmount: Number.parseFloat(e.target.value) || 0,
                     }))
                   }
-                  placeholder="200"
                   className={errors.feeAmount ? "border-destructive" : ""}
                 />
                 {errors.feeAmount && (
