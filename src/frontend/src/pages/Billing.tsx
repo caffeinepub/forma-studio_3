@@ -88,7 +88,7 @@ function billingStatus(days: number): {
   return {
     label: "Paid",
     bg: "oklch(0.2 0.05 185)",
-    color: "oklch(0.75 0.12 185)",
+    color: "oklch(0.85 0.14 185)",
   };
 }
 
@@ -383,7 +383,7 @@ export function Billing() {
                 label: "Monthly Revenue",
                 value: `\u20b9${totalMonthlyRevenue.toLocaleString("en-IN")}`,
                 icon: IndianRupee,
-                color: "oklch(0.75 0.12 185)",
+                color: "oklch(0.85 0.14 185)",
               },
               {
                 label: "Outstanding Dues",
@@ -590,7 +590,7 @@ export function Billing() {
                           </TableCell>
                           <TableCell
                             className="font-body font-medium text-sm"
-                            style={{ color: "oklch(0.75 0.12 185)" }}
+                            style={{ color: "oklch(0.85 0.14 185)" }}
                           >
                             ₹{p.amount.toLocaleString("en-IN")}
                           </TableCell>
@@ -749,7 +749,7 @@ export function Billing() {
                   <CheckCircle2
                     size={32}
                     className="mx-auto mb-2"
-                    style={{ color: "oklch(0.75 0.12 185)" }}
+                    style={{ color: "oklch(0.85 0.14 185)" }}
                   />
                   <p className="text-sm">No reminders due right now.</p>
                 </div>
@@ -855,7 +855,7 @@ export function Billing() {
               <CheckCircle2
                 size={40}
                 className="mx-auto mb-3"
-                style={{ color: "oklch(0.75 0.12 185)" }}
+                style={{ color: "oklch(0.85 0.14 185)" }}
               />
               <p className="font-display text-2xl font-light mb-2">
                 All plans up to date
@@ -946,7 +946,7 @@ export function Billing() {
                                 className="font-body text-xs h-7"
                                 style={{
                                   backgroundColor: "oklch(0.2 0.05 185)",
-                                  color: "oklch(0.75 0.12 185)",
+                                  color: "oklch(0.85 0.14 185)",
                                 }}
                                 data-ocid={`billing.renewals.renew_same.button.${idx + 1}`}
                               >
@@ -1197,7 +1197,7 @@ export function Billing() {
               New fee:{" "}
               <span
                 className="font-medium"
-                style={{ color: "oklch(0.75 0.12 185)" }}
+                style={{ color: "oklch(0.85 0.14 185)" }}
               >
                 ₹
                 {(

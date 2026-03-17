@@ -24,9 +24,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertTriangle, Info, Pencil, Plus, Trash2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  Pencil,
+  Plus,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useChangeRequests } from "../hooks/useChangeRequests";
 import { useSessions } from "../hooks/useSessions";
 import { useTrainers } from "../hooks/useTrainers";
 import type { Session, Trainer } from "../types";
@@ -49,13 +59,9 @@ function isValidTimeSlot(time: string): boolean {
   if (!time) return false;
   const [h, m] = time.split(":").map(Number);
   const mins = h * 60 + m;
-  const morningStart = 7 * 60 + 30;
-  const morningEnd = 12 * 60;
-  const eveningStart = 16 * 60;
-  const eveningEnd = 20 * 60;
   return (
-    (mins >= morningStart && mins <= morningEnd) ||
-    (mins >= eveningStart && mins <= eveningEnd)
+    (mins >= 7 * 60 + 30 && mins <= 12 * 60) ||
+    (mins >= 16 * 60 && mins <= 20 * 60)
   );
 }
 
@@ -100,11 +106,14 @@ function formatDuration(mins: number) {
 export function Sessions() {
   const { sessions, addSession, updateSession, deleteSession } = useSessions();
   const { trainers } = useTrainers();
+  const { requests, updateRequestStatus, pendingCount } = useChangeRequests();
+
   const [dateFilter, setDateFilter] = useState(todayStr);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [form, setForm] = useState<Omit<Session, "id">>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+  const [activeTab, setActiveTab] = useState("schedule");
 
   const filtered = useMemo(() => {
     return sessions
@@ -112,7 +121,6 @@ export function Sessions() {
       .sort((a, b) => a.time.localeCompare(b.time));
   }, [sessions, dateFilter]);
 
-  // Check trainer availability warning
   const trainerWarning = useMemo(() => {
     if (!form.trainer || !form.date || !form.time) return null;
     const trainer = trainers.find((t) => t.name === form.trainer);
@@ -123,7 +131,6 @@ export function Sessions() {
     return null;
   }, [form.trainer, form.date, form.time, trainers]);
 
-  // Check reformer occupancy warning
   const reformerWarning = useMemo(() => {
     if (form.reformerAssignment === "None" || !form.date || !form.time)
       return null;
@@ -194,6 +201,30 @@ export function Sessions() {
     return { bg: "oklch(0.9 0.03 220)", color: "oklch(0.42 0.07 220)" };
   };
 
+  function getSessionName(sessionId: string) {
+    return sessions.find((s) => s.id === sessionId)?.name ?? sessionId;
+  }
+
+  const statusBadge = (status: string) => {
+    if (status === "pending")
+      return {
+        bg: "oklch(0.93 0.07 65 / 0.2)",
+        color: "oklch(0.65 0.12 60)",
+        label: "Pending",
+      };
+    if (status === "approved")
+      return {
+        bg: "oklch(0.88 0.04 145 / 0.2)",
+        color: "oklch(0.52 0.085 150)",
+        label: "Approved",
+      };
+    return {
+      bg: "oklch(0.65 0.1 25 / 0.2)",
+      color: "oklch(0.65 0.15 25)",
+      label: "Declined",
+    };
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -215,163 +246,324 @@ export function Sessions() {
           }}
         >
           <Plus size={16} />
-          Add Session
+          Schedule Session
         </Button>
       </div>
 
-      {/* Date Filter */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Label className="text-xs font-body font-medium uppercase tracking-widest text-muted-foreground">
-          Date
-        </Label>
-        <Input
-          type="date"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-          className="w-44 font-body text-sm"
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setDateFilter("")}
-          className="font-body text-xs text-muted-foreground"
-        >
-          Show All
-        </Button>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="font-body">
+          <TabsTrigger value="schedule" data-ocid="sessions.schedule.tab">
+            Schedule
+          </TabsTrigger>
+          <TabsTrigger
+            value="change-requests"
+            data-ocid="sessions.change_requests.tab"
+            className="relative"
+          >
+            Change Requests
+            {pendingCount > 0 && (
+              <Badge
+                className="ml-1.5 text-[10px] h-4 min-w-4 px-1 font-body"
+                style={{
+                  backgroundColor: "oklch(0.65 0.15 25)",
+                  color: "white",
+                  border: "none",
+                }}
+              >
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Table */}
-      {filtered.length === 0 ? (
-        <div
-          data-ocid="sessions.empty_state"
-          className="text-center py-16 text-muted-foreground font-body"
-        >
-          <p className="font-display text-2xl font-light mb-2">
-            No sessions found
-          </p>
-          <p className="text-sm">
-            Try selecting a different date or add a new session.
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-border/60 shadow-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table data-ocid="sessions.table">
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  {[
-                    "Session",
-                    "Date",
-                    "Time",
-                    "Duration",
-                    "Trainer",
-                    "Type",
-                    "Reformer",
-                    "Occupancy",
-                    "Actions",
-                  ].map((h) => (
-                    <TableHead
-                      key={h}
-                      className="font-body font-medium text-xs uppercase tracking-widest text-muted-foreground"
-                    >
-                      {h}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((s, idx) => {
-                  const style = typeBadgeStyle(s.sessionType);
-                  return (
-                    <TableRow
-                      key={s.id}
-                      data-ocid={`sessions.row.${idx + 1}`}
-                      className="hover:bg-muted/20"
-                    >
-                      <TableCell className="font-body font-medium text-sm text-foreground">
-                        {s.name}
-                      </TableCell>
-                      <TableCell className="font-body text-sm text-muted-foreground">
-                        {s.date}
-                      </TableCell>
-                      <TableCell className="font-body font-medium text-sm">
-                        {s.time}
-                      </TableCell>
-                      <TableCell className="font-body text-sm">
-                        {formatDuration(s.duration)}
-                      </TableCell>
-                      <TableCell className="font-body text-sm">
-                        {s.trainer}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className="font-body text-xs border-0"
-                          style={{
-                            backgroundColor: style.bg,
-                            color: style.color,
-                          }}
-                        >
-                          {s.sessionType}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {s.reformerAssignment !== "None" ? (
-                          <Badge
-                            className="font-body text-xs border-0"
-                            style={{
-                              backgroundColor: "oklch(0.88 0.04 145)",
-                              color: "oklch(0.35 0.07 148)",
-                            }}
-                          >
-                            {s.reformerAssignment}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            —
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-body text-sm font-medium">
-                          {s.enrolled}
-                        </span>
-                        <span className="text-muted-foreground font-body text-sm">
-                          {" "}
-                          / {s.capacity}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEdit(s)}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            data-ocid={`sessions.edit_button.${idx + 1}`}
-                          >
-                            <Pencil size={13} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(s)}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                            data-ocid={`sessions.delete_button.${idx + 1}`}
-                          >
-                            <Trash2 size={13} />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+        {/* Schedule tab */}
+        <TabsContent value="schedule" className="mt-4 space-y-4">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="space-y-0.5">
+              <Label className="text-xs font-body uppercase tracking-widest text-muted-foreground">
+                Filter by date
+              </Label>
+              <Input
+                data-ocid="sessions.date_filter.input"
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="font-body w-auto"
+              />
+            </div>
+            {dateFilter && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDateFilter("")}
+                className="font-body text-xs mt-4"
+                style={{ color: "oklch(0.55 0.01 80)" }}
+              >
+                Clear filter
+              </Button>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* Dialog */}
+          {filtered.length === 0 ? (
+            <div
+              data-ocid="sessions.empty_state"
+              className="text-center py-16 text-muted-foreground font-body"
+            >
+              <p className="font-display text-2xl font-light mb-2">
+                No sessions found
+              </p>
+              <p className="text-sm">
+                Try a different date or schedule a new session.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/60 overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table data-ocid="sessions.table">
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      {[
+                        "Session",
+                        "Date",
+                        "Time",
+                        "Duration",
+                        "Trainer",
+                        "Type",
+                        "Reformer",
+                        "Capacity",
+                        "Actions",
+                      ].map((h) => (
+                        <TableHead
+                          key={h}
+                          className="font-body font-medium text-xs uppercase tracking-widest text-muted-foreground"
+                        >
+                          {h}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((session, idx) => {
+                      const style = typeBadgeStyle(session.sessionType);
+                      return (
+                        <TableRow
+                          key={session.id}
+                          data-ocid={`sessions.row.${idx + 1}`}
+                          className="hover:bg-muted/20"
+                        >
+                          <TableCell className="font-body font-medium text-sm text-foreground">
+                            {session.name}
+                          </TableCell>
+                          <TableCell className="font-body text-sm text-muted-foreground">
+                            {session.date}
+                          </TableCell>
+                          <TableCell className="font-body text-sm">
+                            {session.time}
+                          </TableCell>
+                          <TableCell className="font-body text-sm text-muted-foreground">
+                            {formatDuration(session.duration)}
+                          </TableCell>
+                          <TableCell className="font-body text-sm">
+                            {session.trainer}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className="font-body text-xs"
+                              style={{
+                                backgroundColor: style.bg,
+                                color: style.color,
+                                border: "none",
+                              }}
+                            >
+                              {session.sessionType}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {session.reformerAssignment !== "None" ? (
+                              <Badge
+                                className="font-body text-xs"
+                                style={{
+                                  backgroundColor: "oklch(0.88 0.04 145)",
+                                  color: "oklch(0.35 0.07 148)",
+                                  border: "none",
+                                }}
+                              >
+                                {session.reformerAssignment}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-body text-sm">
+                              {session.enrolled}/{session.capacity}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEdit(session)}
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                                data-ocid={`sessions.edit_button.${idx + 1}`}
+                              >
+                                <Pencil size={13} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(session)}
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                data-ocid={`sessions.delete_button.${idx + 1}`}
+                              >
+                                <Trash2 size={13} />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Change Requests tab */}
+        <TabsContent value="change-requests" className="mt-4">
+          {requests.length === 0 ? (
+            <div
+              data-ocid="sessions.change_requests.empty_state"
+              className="text-center py-16 text-muted-foreground font-body"
+            >
+              <p className="font-display text-2xl font-light mb-2">
+                No change requests
+              </p>
+              <p className="text-sm">
+                Client requests to reschedule sessions will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/60 overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table data-ocid="sessions.change_requests.table">
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      {[
+                        "Client",
+                        "Session",
+                        "Current Time",
+                        "Requested",
+                        "Note",
+                        "Status",
+                        "Actions",
+                      ].map((h) => (
+                        <TableHead
+                          key={h}
+                          className="font-body font-medium text-xs uppercase tracking-widest text-muted-foreground"
+                        >
+                          {h}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {requests.map((req, idx) => {
+                      const badge = statusBadge(req.status);
+                      const sessionDT = new Date(req.sessionDateTime);
+                      return (
+                        <TableRow
+                          key={req.id}
+                          data-ocid={`sessions.change_requests.row.${idx + 1}`}
+                          className="hover:bg-muted/20"
+                        >
+                          <TableCell>
+                            <p className="font-body font-medium text-sm text-foreground">
+                              {req.clientName}
+                            </p>
+                          </TableCell>
+                          <TableCell className="font-body text-sm">
+                            {getSessionName(req.sessionId)}
+                          </TableCell>
+                          <TableCell className="font-body text-sm text-muted-foreground">
+                            {sessionDT.toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                            })}{" "}
+                            {req.sessionDateTime.split("T")[1]}
+                          </TableCell>
+                          <TableCell className="font-body text-sm">
+                            {req.requestedDate} {req.requestedTime}
+                          </TableCell>
+                          <TableCell className="font-body text-sm text-muted-foreground max-w-[140px] truncate">
+                            {req.note || "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              className="font-body text-xs"
+                              style={{
+                                backgroundColor: badge.bg,
+                                color: badge.color,
+                                border: "none",
+                              }}
+                            >
+                              {badge.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {req.status === "pending" ? (
+                              <div className="flex gap-1.5">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  data-ocid={`sessions.change_requests.approve_button.${idx + 1}`}
+                                  onClick={() => {
+                                    updateRequestStatus(req.id, "approved");
+                                    toast.success("Request approved");
+                                  }}
+                                  className="h-7 w-7 p-0 hover:text-green-500"
+                                  style={{ color: "oklch(0.52 0.085 150)" }}
+                                  title="Approve"
+                                >
+                                  <CheckCircle2 size={14} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  data-ocid={`sessions.change_requests.decline_button.${idx + 1}`}
+                                  onClick={() => {
+                                    updateRequestStatus(req.id, "declined");
+                                    toast.success("Request declined");
+                                  }}
+                                  className="h-7 w-7 p-0 hover:text-destructive"
+                                  style={{ color: "oklch(0.55 0.1 25)" }}
+                                  title="Decline"
+                                >
+                                  <XCircle size={14} />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-body text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Session form dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           data-ocid="sessions.form.dialog"
@@ -379,7 +571,7 @@ export function Sessions() {
         >
           <DialogHeader>
             <DialogTitle className="font-display text-2xl font-light">
-              {editingSession ? "Edit Session" : "New Session"}
+              {editingSession ? "Edit Session" : "Schedule Session"}
             </DialogTitle>
           </DialogHeader>
 
@@ -390,11 +582,12 @@ export function Sessions() {
                   Session Name *
                 </Label>
                 <Input
+                  data-ocid="sessions.form.name.input"
                   value={form.name}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, name: e.target.value }))
                   }
-                  placeholder="Morning Flow"
+                  placeholder="e.g. Morning Flow"
                   className={errors.name ? "border-destructive" : ""}
                 />
                 {errors.name && (
@@ -410,7 +603,6 @@ export function Sessions() {
                   onValueChange={(v) => setForm((f) => ({ ...f, trainer: v }))}
                 >
                   <SelectTrigger
-                    data-ocid="sessions.form.trainer.select"
                     className={errors.trainer ? "border-destructive" : ""}
                   >
                     <SelectValue placeholder="Select trainer" />
@@ -418,20 +610,12 @@ export function Sessions() {
                   <SelectContent>
                     {trainers.map((t) => (
                       <SelectItem key={t.id} value={t.name}>
-                        {t.name}
-                        {t.status !== "Available" && ` (${t.status})`}
+                        {t.name}{" "}
+                        {t.status !== "Available" ? `(${t.status})` : ""}
                       </SelectItem>
                     ))}
-                    {trainers.length === 0 && (
-                      <SelectItem value="" disabled>
-                        No trainers added
-                      </SelectItem>
-                    )}
                   </SelectContent>
                 </Select>
-                {errors.trainer && (
-                  <p className="text-xs text-destructive">{errors.trainer}</p>
-                )}
                 {trainerWarning && (
                   <p
                     className="text-xs flex items-center gap-1"
@@ -440,6 +624,9 @@ export function Sessions() {
                     <AlertTriangle size={11} />
                     {trainerWarning}
                   </p>
+                )}
+                {errors.trainer && (
+                  <p className="text-xs text-destructive">{errors.trainer}</p>
                 )}
               </div>
             </div>
@@ -450,6 +637,7 @@ export function Sessions() {
                   Date *
                 </Label>
                 <Input
+                  data-ocid="sessions.form.date.input"
                   type="date"
                   value={form.date}
                   onChange={(e) =>

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useClients } from "../hooks/useClients";
@@ -51,7 +51,21 @@ const EMPTY_FORM: Omit<Client, "id"> = {
   planStartDate: new Date().toISOString().split("T")[0],
 };
 
-export function Clients() {
+interface ClientsProps {
+  saveClientCredentials: (
+    username: string,
+    password: string,
+    clientId: string,
+  ) => void;
+  getClientCredentialsByClientId: (
+    clientId: string,
+  ) => { username: string } | null;
+}
+
+export function Clients({
+  saveClientCredentials,
+  getClientCredentialsByClientId,
+}: ClientsProps) {
   const { clients, addClient, updateClient, deleteClient } = useClients();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -61,6 +75,16 @@ export function Clients() {
   const [errors, setErrors] = useState<
     Partial<Record<keyof Omit<Client, "id">, string>>
   >({});
+
+  // Credentials dialog
+  const [credDialogOpen, setCredDialogOpen] = useState(false);
+  const [credClient, setCredClient] = useState<Client | null>(null);
+  const [credUsername, setCredUsername] = useState("");
+  const [credPassword, setCredPassword] = useState("");
+  const [credErrors, setCredErrors] = useState<{
+    username?: string;
+    password?: string;
+  }>({});
 
   const filtered = useMemo(() => {
     return clients.filter((c) => {
@@ -83,6 +107,15 @@ export function Clients() {
     setForm(rest);
     setErrors({});
     setDialogOpen(true);
+  }
+
+  function openCredentials(client: Client) {
+    setCredClient(client);
+    const existing = getClientCredentialsByClientId(client.id);
+    setCredUsername(existing?.username ?? "");
+    setCredPassword("");
+    setCredErrors({});
+    setCredDialogOpen(true);
   }
 
   function validate(): boolean {
@@ -113,6 +146,26 @@ export function Clients() {
     toast.success(`${client.name} removed`);
   }
 
+  function handleCredSubmit() {
+    const e: typeof credErrors = {};
+    if (!credUsername.trim()) e.username = "Username is required";
+    if (credUsername.trim().length < 3)
+      e.username = "Username must be at least 3 characters";
+    if (!credPassword.trim()) e.password = "Password is required";
+    if (credPassword.trim().length < 6)
+      e.password = "Password must be at least 6 characters";
+    setCredErrors(e);
+    if (Object.keys(e).length > 0) return;
+    if (!credClient) return;
+    saveClientCredentials(
+      credUsername.trim(),
+      credPassword.trim(),
+      credClient.id,
+    );
+    toast.success(`Credentials saved for ${credClient.name}`);
+    setCredDialogOpen(false);
+  }
+
   function handleFreqOrCycleChange(
     freq: Client["sessionFrequency"],
     cycle: Client["paymentCycle"],
@@ -124,6 +177,10 @@ export function Clients() {
       paymentCycle: cycle,
       feeAmount: suggested,
     }));
+  }
+
+  function hasCredentials(clientId: string) {
+    return getClientCredentialsByClientId(clientId) !== null;
   }
 
   return (
@@ -203,6 +260,7 @@ export function Clients() {
                     "Fee",
                     "Reformer",
                     "Status",
+                    "Credentials",
                     "Actions",
                   ].map((h) => (
                     <TableHead
@@ -281,6 +339,34 @@ export function Clients() {
                       </Badge>
                     </TableCell>
                     <TableCell>
+                      {hasCredentials(client.id) ? (
+                        <Badge
+                          className="font-body text-xs cursor-pointer"
+                          style={{
+                            backgroundColor: "oklch(0.85 0.14 185 / 0.15)",
+                            color: "oklch(0.85 0.14 185)",
+                            border: "none",
+                          }}
+                          onClick={() => openCredentials(client)}
+                        >
+                          <KeyRound size={10} className="mr-1" />
+                          Issued
+                        </Badge>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openCredentials(client)}
+                          className="h-7 text-xs font-body px-2 gap-1"
+                          style={{ color: "oklch(0.55 0.01 80)" }}
+                          data-ocid={`clients.credentials.open_modal_button.${idx + 1}`}
+                        >
+                          <KeyRound size={11} />
+                          Generate
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <div className="flex gap-2">
                         <Button
                           variant="ghost"
@@ -310,7 +396,7 @@ export function Clients() {
         </div>
       )}
 
-      {/* Dialog Form */}
+      {/* Client form dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent
           data-ocid="clients.form.dialog"
@@ -534,6 +620,91 @@ export function Clients() {
               }}
             >
               {editingClient ? "Save Changes" : "Add Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Credentials dialog */}
+      <Dialog open={credDialogOpen} onOpenChange={setCredDialogOpen}>
+        <DialogContent
+          data-ocid="clients.credentials.dialog"
+          className="max-w-sm w-[95vw] font-body"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl font-light">
+              {hasCredentials(credClient?.id ?? "")
+                ? "Update Credentials"
+                : "Generate Credentials"}
+            </DialogTitle>
+          </DialogHeader>
+          {credClient && (
+            <p
+              className="text-sm font-body"
+              style={{ color: "oklch(0.55 0.01 80)" }}
+            >
+              Set login credentials for{" "}
+              <strong style={{ color: "oklch(0.85 0.14 185)" }}>
+                {credClient.name}
+              </strong>
+            </p>
+          )}
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                Username *
+              </Label>
+              <Input
+                data-ocid="clients.credentials.username.input"
+                value={credUsername}
+                onChange={(e) => setCredUsername(e.target.value)}
+                placeholder="e.g. sofia.m"
+                className={credErrors.username ? "border-destructive" : ""}
+              />
+              {credErrors.username && (
+                <p className="text-xs text-destructive">
+                  {credErrors.username}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                Password *
+              </Label>
+              <Input
+                data-ocid="clients.credentials.password.input"
+                type="password"
+                value={credPassword}
+                onChange={(e) => setCredPassword(e.target.value)}
+                placeholder="Min. 6 characters"
+                className={credErrors.password ? "border-destructive" : ""}
+              />
+              {credErrors.password && (
+                <p className="text-xs text-destructive">
+                  {credErrors.password}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCredDialogOpen(false)}
+              data-ocid="clients.credentials.cancel_button"
+              className="font-body"
+            >
+              Cancel
+            </Button>
+            <Button
+              data-ocid="clients.credentials.submit_button"
+              onClick={handleCredSubmit}
+              className="font-body"
+              style={{
+                backgroundColor: "oklch(0.52 0.085 150)",
+                color: "oklch(0.99 0.005 80)",
+              }}
+            >
+              Save Credentials
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -52,7 +52,7 @@ const EMPTY_FORM: Omit<Trainer, "id"> = {
 
 function statusStyle(status: Trainer["status"]) {
   if (status === "Available")
-    return { bg: "oklch(0.2 0.05 185)", color: "oklch(0.75 0.12 185)" };
+    return { bg: "oklch(0.2 0.05 185)", color: "oklch(0.85 0.14 185)" };
   if (status === "On Leave")
     return { bg: "oklch(0.22 0.06 60)", color: "oklch(0.75 0.12 60)" };
   return { bg: "oklch(0.18 0.03 15)", color: "oklch(0.65 0.08 15)" };
@@ -60,7 +60,7 @@ function statusStyle(status: Trainer["status"]) {
 
 function dayStyle(active: boolean) {
   return active
-    ? { bg: "oklch(0.2 0.05 185)", color: "oklch(0.75 0.12 185)" }
+    ? { bg: "oklch(0.2 0.05 185)", color: "oklch(0.85 0.14 185)" }
     : { bg: "oklch(0.15 0.005 260)", color: "oklch(0.35 0.01 260)" };
 }
 
@@ -299,7 +299,7 @@ export function Trainers() {
                                   className="text-xs px-2 py-1 rounded font-body font-medium"
                                   style={{
                                     backgroundColor: "oklch(0.2 0.05 185)",
-                                    color: "oklch(0.75 0.12 185)",
+                                    color: "oklch(0.85 0.14 185)",
                                   }}
                                 >
                                   {t.availableSlots === "Morning"

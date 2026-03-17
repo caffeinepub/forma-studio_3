@@ -29,7 +29,7 @@ const today = new Date().toISOString().split("T")[0];
 
 function statusBadgeStyle(status: AttendanceRecord["status"] | null) {
   if (status === "Present")
-    return { bg: "oklch(0.2 0.05 185)", color: "oklch(0.75 0.12 185)" };
+    return { bg: "oklch(0.2 0.05 185)", color: "oklch(0.85 0.14 185)" };
   if (status === "Late")
     return { bg: "oklch(0.22 0.06 60)", color: "oklch(0.75 0.12 60)" };
   if (status === "Absent")
@@ -138,7 +138,7 @@ export function Attendance() {
   }, [clients, sessions, records, summaryMonth]);
 
   function pctColor(pct: number) {
-    if (pct >= 80) return "oklch(0.75 0.12 185)";
+    if (pct >= 80) return "oklch(0.85 0.14 185)";
     if (pct >= 50) return "oklch(0.75 0.12 60)";
     return "oklch(0.65 0.1 15)";
   }
@@ -231,7 +231,7 @@ export function Attendance() {
                   </span>
                 </div>
                 <div className="flex gap-3 text-xs font-body">
-                  <span style={{ color: "oklch(0.75 0.12 185)" }}>
+                  <span style={{ color: "oklch(0.85 0.14 185)" }}>
                     {presentCount} Present
                   </span>
                   <span style={{ color: "oklch(0.75 0.12 60)" }}>
