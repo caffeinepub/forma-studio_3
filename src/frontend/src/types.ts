@@ -75,3 +75,32 @@ export type RenewalRecord = {
   cycleEndDate: string;
   status: "Pending" | "Renewed" | "Upgraded" | "Deactivated";
 };
+
+export type OperatingDay =
+  | "Mon"
+  | "Tue"
+  | "Wed"
+  | "Thu"
+  | "Fri"
+  | "Sat"
+  | "Sun";
+
+export type DaySlot = {
+  day: OperatingDay;
+  slot: string; // e.g. "7:30 AM - 8:30 AM"
+  reformer: "R1" | "R2" | "R3";
+};
+
+export type ClientSchedule = {
+  clientId: string;
+  scheduledDays: DaySlot[];
+  weeklyFrequency?: "1x" | "2x" | "3x";
+};
+
+export type DayAttendanceStatus = "Pending" | "Attended" | "Missed";
+
+export type WeeklyAttendance = {
+  clientId: string;
+  weekKey: string; // ISO date string of the Monday of that week e.g. "2026-03-16"
+  days: Record<OperatingDay, DayAttendanceStatus>;
+};

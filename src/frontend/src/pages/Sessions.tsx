@@ -716,7 +716,7 @@ export function Sessions() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {["Reformer Group", "Private", "Mat"].map((v) => (
+                    {["Private", "Mat"].map((v) => (
                       <SelectItem key={v} value={v}>
                         {v}
                       </SelectItem>

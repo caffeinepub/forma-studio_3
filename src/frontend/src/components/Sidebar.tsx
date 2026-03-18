@@ -102,7 +102,7 @@ function NavContent({
         <img
           src="/assets/uploads/IMG_20260317_064146-1.jpg"
           alt="The Pilates Studio"
-          className="w-full object-contain max-h-24"
+          className="w-full object-contain max-h-32"
         />
       </div>
 
@@ -264,7 +264,7 @@ export function MobileHeader({
         <img
           src="/assets/uploads/IMG_20260317_064146-1.jpg"
           alt="The Pilates Studio"
-          className="h-10 object-contain max-w-[200px]"
+          className="h-14 object-contain max-w-[220px]"
         />
         <div className="flex items-center gap-2">
           {pendingCount > 0 && (
